@@ -73,8 +73,6 @@ int main( void )
 	// initialize port
 	PORTC = 0x01;
 	DDRC = 0x2F;
-	PORTB = 0x01;
-	DDRB = 0x20;
 	PORTD = 0x10;
 	DDRD = 0x30;
 
@@ -82,7 +80,7 @@ int main( void )
 
 	initADC4();
 
-	xSemaphore = xSemaphoreCreateMutex();
+	xSemaphore = xSemaphoreCreateMutex(); // pentru sectiunea critica ce consta in valoarea provenita de la potentiometru
 
 	// create blinking task
 	xTaskCreate( blink, "Blinky", configMINIMAL_STACK_SIZE, NULL, 1, NULL );
@@ -113,52 +111,19 @@ xTaskCreate (receiveFromSPI, "SPI", configMINIMAL_STACK_SIZE,  NULL, 1, NULL );
 
 	return 0;
 }
-/*-----------------------------------------------------------*/
+/*-----------------END OF MAIN------------------------------------------*/
 
-/*static void blink( void *pvParameters )
-{
-	uint8_t dir = 1; // direction flag
-	TickType_t xLastWakeTime = xTaskGetTickCount();
-	const TickType_t delay = 500;
 
-	(void)pvParameters; // parameters not used
-
-	// forever loop
-	for(;;)
-	{
-		vTaskDelayUntil(&xLastWakeTime, delay);
-
-		if (dir)
-		{
-			PORTD <<= 1;
-			dir = PORTD != 0x20;
-		}
-		else
-		{
-			PORTD >>= 1;
-			dir = PORTD == 0x10;
-		}
-	}
-}
-*/
 static void blink(void* pvParameters)
 {
-    (void)pvParameters; // parameters not used
-    
- 	uint8_t dir = 1; // direction flag
+	(void)pvParameters; // parameters not used
 	TickType_t xLastWakeTime = xTaskGetTickCount();
 	const TickType_t delay = 500;
-
-
-   while (1) {
-	if( xSemaphore != NULL )
-    	{
-       		 /* See if we can obtain the semaphore.  If the semaphore is not
-        	 available wait "portMAX_DELAY" ticks to see if it becomes free. */
-        	if( xSemaphoreTake( xSemaphore, ( TickType_t ) portMAX_DELAY ) == pdTRUE )
-        	{
-			vTaskDelayUntil(&xLastWakeTime, delay);
-
+	uint8_t dir = 1; // direction flag
+	
+	(void)pvParameters;
+	
+	while (1) {
 		if (dir)
 		{
 			PORTD <<= 1;
@@ -170,73 +135,38 @@ static void blink(void* pvParameters)
 			dir = PORTD == 0x10;
 		}
 
-			xSemaphoreGive( xSemaphore );
-		}
+		
+		vTaskDelayUntil(&xLastWakeTime, delay);
 	}
-	vTaskDelay(50);
-	
-	}
+    vTaskDelay(50);
 }
 
 
-/*static void vBlinkLed(void* pvParameters)
-{
-    (void)pvParameters; // parameters not used
-    
- 	//uint8_t dir = 1;
 
-    for (;; )
-    {
-	
-        //ne-necesar: PORTB ^= _BV(PB5);
-
-
-	//this turns pin C0 on and off
-//turns C0 HIGH
-//PORTC |=(1<<0);
-PORTC = (1<<PC0);
-//PAUSE 500 miliseconds
-vTaskDelay(500);
-//turns C0 LOW
-//PORTC &= ~(1 << 0);
-PORTC = (0<<PC5);
-//PAUSE 500 miliseconds
-vTaskDelay(500); 
-
-   
-
-}
-
-}*/
 
 static void vBlinkLed(void* pvParameters)
 {
-    (void)pvParameters; // parameters not used
+	(void)pvParameters; // parameters not used
+	TickType_t xLastWakeTime = xTaskGetTickCount();
+	const TickType_t delay = 500;
     
- 	//uint8_t dir = 1;
 
    while (1) {
-	if( xSemaphore != NULL )
-    	{
-       		 /* See if we can obtain the semaphore.  If the semaphore is not
-        	 available wait "portMAX_DELAY" ticks to see if it becomes free. */
-        	if( xSemaphoreTake( xSemaphore, ( TickType_t ) portMAX_DELAY ) == pdTRUE )
-        	{
 				//this turns pin C0 on and off
-//turns C0 HIGH
-//PORTC |=(1<<0);
-PORTC = (1<<PC0);
-//PAUSE 500 miliseconds
-vTaskDelay(500);
-//turns C0 LOW
-//PORTC &= ~(1 << 0);
-PORTC = (0<<PC0);
-//PAUSE 500 miliseconds
-vTaskDelay(500); 
+	//turns C0 HIGH
+	PORTC |=(1<<0);
+	//PORTC = (1<<PC0);
+	//PAUSE 500 miliseconds
+	vTaskDelayUntil(&xLastWakeTime, 1500);
+	//turns C0 LOW
+	PORTC &= ~(1 << 0);
+	//PORTC = (0<<PC0);
+	//PAUSE 500 miliseconds
+	//vTaskDelay(500); 
 
-		}
-	}
-	vTaskDelay(50);
+		
+	
+	vTaskDelayUntil(&xLastWakeTime, delay);
 	
 	}
 }
@@ -244,8 +174,6 @@ vTaskDelay(500);
 static void potentiometer(void* pvParameters)
 {
     (void)pvParameters; // parameters not used
-    
- 	//uint8_t dir = 1;
 
    while (1) {
 	if( xSemaphore != NULL )
@@ -269,8 +197,6 @@ static void potentiometer(void* pvParameters)
 static void askPotentiometer(void* pvParameters)
 {
     (void)pvParameters; // parameters not used
-    
- 	//uint8_t dir = 1;
 
   while (1) {
 	if( xSemaphore != NULL )
@@ -281,7 +207,7 @@ static void askPotentiometer(void* pvParameters)
         	{
 	 
 
-			if (potentiometerValue > threshold_level +20) { 
+			if (potentiometerValue > threshold_level +20) { //histerezis in software
 			PORTC = (1<<PC5); //turn on LED attached to port PC5
 		
 			}
@@ -298,7 +224,9 @@ static void askPotentiometer(void* pvParameters)
 
 static void receiveFromSPI(void* pvParameters)
 {
-    (void)pvParameters; // parameters not used
+   (void)pvParameters; // parameters not used
+	TickType_t xLastWakeTime = xTaskGetTickCount();
+	const TickType_t delay = 500;
 
 //variabile pentru spi      adaugat de mine
 	uint8_t payload[wl_module_PAYLOAD];		//holds the payload
@@ -306,27 +234,20 @@ static void receiveFromSPI(void* pvParameters)
 	uint8_t zaehler = 0;
    
    while(1)
-    { if( xSemaphore != NULL )
-    	{
-       		 /* See if we can obtain the semaphore.  If the semaphore is not
-        	 available wait "portMAX_DELAY" ticks to see if it becomes free. */
-        	if( xSemaphoreTake( xSemaphore, ( TickType_t ) portMAX_DELAY ) == pdTRUE )
-        	{
+    { 
 		while (!wl_module_data_ready());			//waits for RX_DR Flag in STATUS
 		//nRF_status = wl_module_get_data(payload);	//reads the incomming Data to Array payload
 		zaehler = payload[0];
 
 		//modificat de mine
-		if (zaehler > 125) {PORTC = (1<<PC3);} //turn on LED attached to port PC3;
-		else {PORTC = (0<<PC3);} //turn off LED attached to port PC3;
+		if (zaehler > 125) {PORTC |=(1<<3);} //turn on LED attached to port PC3;
+		else {PORTC &= ~(1 << 3);} //turn off LED attached to port PC3;
 		
     
 		
 				
-		xSemaphoreGive( xSemaphore );
-		}
-	}
-	vTaskDelay(50);
+		
+	vTaskDelayUntil(&xLastWakeTime, delay);
      }
 
 }
